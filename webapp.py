@@ -2,10 +2,8 @@
 Simple Web Application Demo for RDBMS
 A todo list application using Flask
 
-SECURITY NOTE: This demo application uses basic input sanitization but does not
-implement parameterized queries. For production use, implement proper parameterized
-query support in the RDBMS layer or use an established database system with
-built-in parameterized query support.
+This demo now uses parameterized queries for all database operations,
+providing proper SQL injection prevention.
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
@@ -15,26 +13,6 @@ import re
 
 app = Flask(__name__)
 rdbms = RDBMS(db_name="webapp_db", data_dir="./data")
-
-
-def sanitize_sql_string(value):
-    """
-    Sanitize string values for SQL queries to prevent injection.
-    This is a simple implementation - in production, use parameterized queries.
-    """
-    if value is None:
-        return 'NULL'
-    # Convert to string and escape single quotes
-    value = str(value)
-    # Remove any null bytes
-    value = value.replace('\x00', '')
-    # Escape single quotes by doubling them (SQL standard)
-    value = value.replace("'", "''")
-    # Remove any SQL comment markers
-    value = value.replace('--', '')
-    value = value.replace('/*', '')
-    value = value.replace('*/', '')
-    return value
 
 
 def validate_integer(value, default=0):
@@ -73,7 +51,7 @@ def init_db():
         rdbms.execute(create_table_sql)
         print("Created todos table")
         
-        # Insert some sample data
+        # Insert some sample data using parameterized queries
         sample_todos = [
             (1, "Learn RDBMS", "Understand how relational databases work", False, 1),
             (2, "Build web app", "Create a web application using Flask", False, 2),
@@ -82,8 +60,8 @@ def init_db():
         
         for todo in sample_todos:
             rdbms.execute(
-                f"INSERT INTO todos (id, title, description, completed, priority) "
-                f"VALUES ({todo[0]}, '{todo[1]}', '{todo[2]}', {todo[3]}, {todo[4]})"
+                "INSERT INTO todos (id, title, description, completed, priority) VALUES (?, ?, ?, ?, ?)",
+                list(todo)
             )
         print("Inserted sample todos")
 
@@ -113,8 +91,7 @@ def get_todos():
 @app.route('/api/todos/<int:todo_id>', methods=['GET'])
 def get_todo(todo_id):
     """API endpoint to get a specific todo"""
-    # todo_id is validated as int by Flask route, safe to use
-    success, todos = rdbms.execute(f"SELECT * FROM todos WHERE id = {validate_integer(todo_id)}")
+    success, todos = rdbms.execute("SELECT * FROM todos WHERE id = ?", [todo_id])
     
     if success and todos:
         return jsonify({'success': True, 'todo': todos[0]})
@@ -127,9 +104,9 @@ def create_todo():
     """API endpoint to create a new todo"""
     data = request.get_json()
     
-    # Sanitize and validate inputs
-    title = sanitize_sql_string(data.get('title', ''))
-    description = sanitize_sql_string(data.get('description', ''))
+    # Validate inputs
+    title = data.get('title', '')
+    description = data.get('description', '')
     completed = validate_boolean(data.get('completed', False))
     priority = validate_integer(data.get('priority', 3))
     
@@ -144,12 +121,11 @@ def create_todo():
     else:
         next_id = 1
     
-    sql = f"""
-    INSERT INTO todos (id, title, description, completed, priority)
-    VALUES ({next_id}, '{title}', '{description}', {completed}, {priority})
-    """
-    
-    success, result = rdbms.execute(sql)
+    # Use parameterized query
+    success, result = rdbms.execute(
+        "INSERT INTO todos (id, title, description, completed, priority) VALUES (?, ?, ?, ?, ?)",
+        [next_id, title, description, completed, priority]
+    )
     
     if success:
         return jsonify({'success': True, 'message': result, 'id': next_id}), 201
@@ -162,29 +138,32 @@ def update_todo(todo_id):
     """API endpoint to update a todo"""
     data = request.get_json()
     
-    # Validate todo_id
-    todo_id = validate_integer(todo_id)
-    
+    # Build UPDATE query with parameterized values
     set_parts = []
+    params = []
+    
     if 'title' in data:
-        title = sanitize_sql_string(data['title'])
-        set_parts.append(f"title = '{title}'")
+        set_parts.append("title = ?")
+        params.append(data['title'])
     if 'description' in data:
-        description = sanitize_sql_string(data['description'])
-        set_parts.append(f"description = '{description}'")
+        set_parts.append("description = ?")
+        params.append(data['description'])
     if 'completed' in data:
-        completed = validate_boolean(data['completed'])
-        set_parts.append(f"completed = {completed}")
+        set_parts.append("completed = ?")
+        params.append(validate_boolean(data['completed']))
     if 'priority' in data:
         priority = validate_integer(data['priority'], 3)
         if 1 <= priority <= 3:
-            set_parts.append(f"priority = {priority}")
+            set_parts.append("priority = ?")
+            params.append(priority)
     
     if not set_parts:
         return jsonify({'success': False, 'error': 'No fields to update'}), 400
     
-    sql = f"UPDATE todos SET {', '.join(set_parts)} WHERE id = {todo_id}"
-    success, result = rdbms.execute(sql)
+    # Add todo_id to params for WHERE clause
+    params.append(todo_id)
+    sql = f"UPDATE todos SET {', '.join(set_parts)} WHERE id = ?"
+    success, result = rdbms.execute(sql, params)
     
     if success:
         return jsonify({'success': True, 'message': result})
@@ -195,9 +174,7 @@ def update_todo(todo_id):
 @app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
 def delete_todo(todo_id):
     """API endpoint to delete a todo"""
-    # Validate todo_id
-    todo_id = validate_integer(todo_id)
-    success, result = rdbms.execute(f"DELETE FROM todos WHERE id = {todo_id}")
+    success, result = rdbms.execute("DELETE FROM todos WHERE id = ?", [todo_id])
     
     if success:
         return jsonify({'success': True, 'message': result})
@@ -209,7 +186,7 @@ def delete_todo(todo_id):
 def get_stats():
     """API endpoint to get statistics"""
     success_all, all_todos = rdbms.execute("SELECT * FROM todos")
-    success_completed, completed = rdbms.execute("SELECT * FROM todos WHERE completed = True")
+    success_completed, completed = rdbms.execute("SELECT * FROM todos WHERE completed = ?", [True])
     
     if success_all:
         total = len(all_todos)

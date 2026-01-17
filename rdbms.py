@@ -710,10 +710,14 @@ class SQLParser:
         parts = [p.strip() for p in values_str.split(',')]
         
         for part in parts:
-            # Remove quotes
+            # Remove quotes and unescape SQL string literals
             if (part.startswith("'") and part.endswith("'")) or \
                (part.startswith('"') and part.endswith('"')):
-                values.append(part[1:-1])
+                # Extract content between quotes
+                value = part[1:-1]
+                # Unescape doubled quotes (SQL standard)
+                value = value.replace("''", "'")
+                values.append(value)
             elif part.upper() == 'NULL':
                 values.append(None)
             elif part.upper() == 'TRUE':
@@ -750,10 +754,12 @@ class SQLParser:
                 op = match.group(2)
                 val_str = match.group(3).strip()
                 
-                # Parse value
+                # Parse value and unescape strings
                 if (val_str.startswith("'") and val_str.endswith("'")) or \
                    (val_str.startswith('"') and val_str.endswith('"')):
                     val = val_str[1:-1]
+                    # Unescape doubled quotes
+                    val = val.replace("''", "'")
                 elif val_str.upper() == 'NULL':
                     val = None
                 elif val_str.upper() == 'TRUE':
@@ -791,10 +797,12 @@ class SQLParser:
                 col = match.group(1)
                 val_str = match.group(2).strip()
                 
-                # Parse value
+                # Parse value and unescape strings
                 if (val_str.startswith("'") and val_str.endswith("'")) or \
                    (val_str.startswith('"') and val_str.endswith('"')):
                     val = val_str[1:-1]
+                    # Unescape doubled quotes
+                    val = val.replace("''", "'")
                 elif val_str.upper() == 'NULL':
                     val = None
                 elif val_str.upper() == 'TRUE':
@@ -824,8 +832,23 @@ class RDBMS:
         self.db = Database(db_name, data_dir)
         self.db.load()
     
-    def execute(self, sql: str) -> Tuple[bool, Any]:
-        """Execute a SQL command"""
+    def execute(self, sql: str, params: Optional[Union[List[Any], Dict[str, Any]]] = None) -> Tuple[bool, Any]:
+        """
+        Execute a SQL command with optional parameterized values.
+        
+        Args:
+            sql: SQL command string with optional placeholders (? or :name)
+            params: List of values for ? placeholders or dict for :name placeholders
+        
+        Examples:
+            execute("SELECT * FROM users WHERE id = ?", [1])
+            execute("INSERT INTO users (name, age) VALUES (?, ?)", ["Alice", 30])
+            execute("SELECT * FROM users WHERE name = :name", {"name": "Alice"})
+        """
+        # Substitute parameters if provided
+        if params:
+            sql = self._substitute_params(sql, params)
+        
         parsed = SQLParser.parse(sql)
         
         if not parsed:
@@ -983,6 +1006,57 @@ class RDBMS:
         
         except Exception as e:
             return False, f"Error executing command: {str(e)}"
+    
+    def _substitute_params(self, sql: str, params: Union[List[Any], Dict[str, Any]]) -> str:
+        """
+        Substitute parameterized values into SQL string.
+        Supports both positional (?) and named (:name) placeholders.
+        """
+        if isinstance(params, dict):
+            # Named parameters (:name style)
+            for key, value in params.items():
+                placeholder = f":{key}"
+                escaped_value = self._escape_value(value)
+                sql = sql.replace(placeholder, escaped_value)
+        elif isinstance(params, (list, tuple)):
+            # Positional parameters (? style)
+            parts = sql.split('?')
+            if len(parts) - 1 != len(params):
+                raise ValueError(f"Parameter count mismatch: expected {len(parts)-1}, got {len(params)}")
+            
+            result = []
+            for i, part in enumerate(parts[:-1]):
+                result.append(part)
+                result.append(self._escape_value(params[i]))
+            result.append(parts[-1])
+            sql = ''.join(result)
+        
+        return sql
+    
+    def _escape_value(self, value: Any) -> str:
+        """
+        Safely escape a value for SQL insertion.
+        This provides proper type handling and SQL injection prevention.
+        """
+        if value is None:
+            return 'NULL'
+        elif isinstance(value, bool):
+            # Boolean must be checked before int since bool is a subclass of int
+            return str(value)
+        elif isinstance(value, int):
+            return str(value)
+        elif isinstance(value, float):
+            return str(value)
+        elif isinstance(value, str):
+            # Escape single quotes by doubling them (SQL standard)
+            escaped = value.replace("'", "''")
+            # Remove null bytes
+            escaped = escaped.replace('\x00', '')
+            return f"'{escaped}'"
+        else:
+            # For other types, convert to string and escape
+            escaped = str(value).replace("'", "''").replace('\x00', '')
+            return f"'{escaped}'"
     
     def format_result(self, result: Any) -> str:
         """Format query result for display"""

@@ -111,14 +111,38 @@ success, result = db.execute("CREATE TABLE products (id INT PRIMARY KEY, name VA
 if success:
     print(result)
 
-# Insert data
-db.execute("INSERT INTO products (id, name, price) VALUES (1, 'Laptop', 999.99)")
+# Insert data using parameterized queries (recommended for security)
+db.execute("INSERT INTO products (id, name, price) VALUES (?, ?, ?)", [1, 'Laptop', 999.99])
 
-# Query data
-success, rows = db.execute("SELECT * FROM products WHERE price > 500")
+# Query data with parameters
+success, rows = db.execute("SELECT * FROM products WHERE price > ?", [500])
 if success:
     for row in rows:
         print(row)
+
+# Named parameters are also supported
+db.execute("INSERT INTO products (id, name, price) VALUES (:id, :name, :price)", 
+          {"id": 2, "name": "Mouse", "price": 29.99})
+```
+
+### Parameterized Queries
+
+Parameterized queries are now fully supported, providing proper SQL injection prevention:
+
+```python
+# Positional parameters (?)
+db.execute("SELECT * FROM users WHERE name = ? AND age > ?", ["Alice", 25])
+
+# Named parameters (:name)
+db.execute("SELECT * FROM users WHERE name = :name", {"name": "Alice"})
+
+# Safe handling of quotes and special characters
+db.execute("INSERT INTO users (id, name) VALUES (?, ?)", [1, "Bob's Diner"])
+
+# Protection against SQL injection
+malicious_input = "'; DROP TABLE users; --"
+db.execute("INSERT INTO users (id, name) VALUES (?, ?)", [2, malicious_input])
+# The malicious input is safely stored as a string value
 ```
 
 ### Joins Example
@@ -237,16 +261,25 @@ This is a simple educational RDBMS with the following limitations:
 
 ## Security Note
 
-**IMPORTANT**: This is an educational implementation. The web application demo includes
-basic input sanitization but does not implement true parameterized queries. For production
-use, always:
-- Use established database systems (PostgreSQL, MySQL, SQLite, etc.)
-- Implement proper parameterized queries
-- Use ORM frameworks (SQLAlchemy, Django ORM, etc.)
-- Follow security best practices for user input handling
+**IMPORTANT**: This implementation now includes parameterized query support with proper SQL
+injection prevention. The web application demo has been updated to use parameterized queries
+throughout.
 
-The current implementation escapes SQL metacharacters and validates input types, but
-this approach should not be considered production-ready.
+### Parameterized Queries
+The RDBMS now supports:
+- Positional parameters using `?` placeholders
+- Named parameters using `:name` placeholders
+- Automatic escaping and unescaping of special characters
+- Safe handling of SQL metacharacters
+
+All user input in the web application is now safely handled through parameterized queries,
+eliminating SQL injection vulnerabilities.
+
+For production use, consider:
+- Using established database systems (PostgreSQL, MySQL, SQLite, etc.)
+- Implementing connection pooling for multi-user scenarios
+- Adding transaction support for ACID guarantees
+- Using ORM frameworks (SQLAlchemy, Django ORM, etc.)
 
 ## License
 
