@@ -687,7 +687,17 @@ class SQLParser:
             # Parse constraints
             primary_key = 'PRIMARY' in [t.upper() for t in tokens]
             unique = 'UNIQUE' in [t.upper() for t in tokens]
-            nullable = 'NOT' not in [t.upper() for t in tokens] or 'NULL' not in [t.upper() for t in tokens[tokens.index('NOT')+1:]] if 'NOT' in [t.upper() for t in tokens] else True
+            
+            # Parse NOT NULL constraint
+            tokens_upper = [t.upper() for t in tokens]
+            if 'NOT' in tokens_upper:
+                not_index = tokens_upper.index('NOT')
+                # Check if NULL follows NOT
+                has_null_after_not = (not_index + 1 < len(tokens_upper) and 
+                                     tokens_upper[not_index + 1] == 'NULL')
+                nullable = not has_null_after_not
+            else:
+                nullable = True
             
             columns.append(Column(col_name, col_type, length, primary_key, unique, nullable))
         

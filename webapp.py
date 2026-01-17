@@ -6,9 +6,47 @@ A todo list application using Flask
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from rdbms import RDBMS
 import os
+import re
 
 app = Flask(__name__)
 rdbms = RDBMS(db_name="webapp_db", data_dir="./data")
+
+
+def sanitize_sql_string(value):
+    """
+    Sanitize string values for SQL queries to prevent injection.
+    This is a simple implementation - in production, use parameterized queries.
+    """
+    if value is None:
+        return 'NULL'
+    # Convert to string and escape single quotes
+    value = str(value)
+    # Remove any null bytes
+    value = value.replace('\x00', '')
+    # Escape single quotes by doubling them (SQL standard)
+    value = value.replace("'", "''")
+    # Remove any SQL comment markers
+    value = value.replace('--', '')
+    value = value.replace('/*', '')
+    value = value.replace('*/', '')
+    return value
+
+
+def validate_integer(value, default=0):
+    """Validate and convert to integer"""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def validate_boolean(value, default=False):
+    """Validate and convert to boolean"""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ['true', '1', 'yes']
+    return bool(value) if value is not None else default
 
 # Initialize database with tables
 def init_db():
@@ -70,7 +108,8 @@ def get_todos():
 @app.route('/api/todos/<int:todo_id>', methods=['GET'])
 def get_todo(todo_id):
     """API endpoint to get a specific todo"""
-    success, todos = rdbms.execute(f"SELECT * FROM todos WHERE id = {todo_id}")
+    # todo_id is validated as int by Flask route, safe to use
+    success, todos = rdbms.execute(f"SELECT * FROM todos WHERE id = {validate_integer(todo_id)}")
     
     if success and todos:
         return jsonify({'success': True, 'todo': todos[0]})
@@ -83,10 +122,15 @@ def create_todo():
     """API endpoint to create a new todo"""
     data = request.get_json()
     
-    title = data.get('title', '').replace("'", "''")
-    description = data.get('description', '').replace("'", "''")
-    completed = data.get('completed', False)
-    priority = data.get('priority', 3)
+    # Sanitize and validate inputs
+    title = sanitize_sql_string(data.get('title', ''))
+    description = sanitize_sql_string(data.get('description', ''))
+    completed = validate_boolean(data.get('completed', False))
+    priority = validate_integer(data.get('priority', 3))
+    
+    # Validate priority range
+    if priority < 1 or priority > 3:
+        priority = 3
     
     # Get next ID
     success, todos = rdbms.execute("SELECT * FROM todos")
@@ -113,17 +157,23 @@ def update_todo(todo_id):
     """API endpoint to update a todo"""
     data = request.get_json()
     
+    # Validate todo_id
+    todo_id = validate_integer(todo_id)
+    
     set_parts = []
     if 'title' in data:
-        title = data['title'].replace("'", "''")
+        title = sanitize_sql_string(data['title'])
         set_parts.append(f"title = '{title}'")
     if 'description' in data:
-        description = data['description'].replace("'", "''")
+        description = sanitize_sql_string(data['description'])
         set_parts.append(f"description = '{description}'")
     if 'completed' in data:
-        set_parts.append(f"completed = {data['completed']}")
+        completed = validate_boolean(data['completed'])
+        set_parts.append(f"completed = {completed}")
     if 'priority' in data:
-        set_parts.append(f"priority = {data['priority']}")
+        priority = validate_integer(data['priority'], 3)
+        if 1 <= priority <= 3:
+            set_parts.append(f"priority = {priority}")
     
     if not set_parts:
         return jsonify({'success': False, 'error': 'No fields to update'}), 400
@@ -140,6 +190,8 @@ def update_todo(todo_id):
 @app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
 def delete_todo(todo_id):
     """API endpoint to delete a todo"""
+    # Validate todo_id
+    todo_id = validate_integer(todo_id)
     success, result = rdbms.execute(f"DELETE FROM todos WHERE id = {todo_id}")
     
     if success:
