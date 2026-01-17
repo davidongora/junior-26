@@ -230,10 +230,23 @@ This is a simple educational RDBMS with the following limitations:
 - Single-user (no concurrent access control)
 - In-memory operations (not optimized for large datasets)
 - Simple query optimizer (no cost-based optimization)
-- Basic WHERE clause support (equality only, simple AND)
+- Basic WHERE clause support (comparison operators with simple AND)
 - No transactions or ACID guarantees
 - No views, stored procedures, or triggers
 - JSON-based storage (not efficient for large data)
+
+## Security Note
+
+**IMPORTANT**: This is an educational implementation. The web application demo includes
+basic input sanitization but does not implement true parameterized queries. For production
+use, always:
+- Use established database systems (PostgreSQL, MySQL, SQLite, etc.)
+- Implement proper parameterized queries
+- Use ORM frameworks (SQLAlchemy, Django ORM, etc.)
+- Follow security best practices for user input handling
+
+The current implementation escapes SQL metacharacters and validates input types, but
+this approach should not be considered production-ready.
 
 ## License
 

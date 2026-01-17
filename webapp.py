@@ -1,6 +1,11 @@
 """
 Simple Web Application Demo for RDBMS
 A todo list application using Flask
+
+SECURITY NOTE: This demo application uses basic input sanitization but does not
+implement parameterized queries. For production use, implement proper parameterized
+query support in the RDBMS layer or use an established database system with
+built-in parameterized query support.
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
