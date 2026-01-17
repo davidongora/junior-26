@@ -18,6 +18,27 @@
             display: flex;
         }
 
+        /* Icon styles */
+        .icon {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            text-align: center;
+            font-style: normal;
+            font-weight: bold;
+        }
+
+        .icon-clipboard::before { content: "☰"; }
+        .icon-check::before { content: "✓"; }
+        .icon-clock::before { content: "⏱"; }
+        .icon-chart::before { content: "▧"; }
+        .icon-plus::before { content: "+"; }
+        .icon-trash::before { content: "✕"; }
+        .icon-refresh::before { content: "↻"; }
+        .icon-pencil::before { content: "✎"; }
+        .icon-inbox::before { content: "⊡"; }
+
         /* Sidebar Styles */
         .sidebar {
             width: 250px;
@@ -38,6 +59,13 @@
             font-size: 20px;
             font-weight: 600;
             margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-title .icon-pencil {
+            margin-right: 8px;
+            font-size: 20px;
         }
 
         .sidebar-subtitle {
@@ -68,11 +96,6 @@
             background: #34495e;
         }
 
-        .sidebar-menu .icon {
-            margin-right: 10px;
-            font-size: 18px;
-        }
-
         .add-task-btn {
             background: #3498db;
             color: white;
@@ -85,6 +108,14 @@
             width: 100%;
             margin-top: 20px;
             transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .add-task-btn .icon-plus {
+            margin-right: 8px;
+            font-size: 16px;
         }
 
         .add-task-btn:hover {
@@ -114,6 +145,13 @@
         h1 {
             color: #333;
             margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        h1 .icon-pencil {
+            margin-right: 10px;
+            font-size: 28px;
         }
 
         .subtitle {
@@ -234,6 +272,12 @@
             cursor: pointer;
             font-weight: 600;
             transition: background 0.3s;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .btn-small .icon {
+            margin-right: 5px;
         }
 
         .btn-success {
@@ -272,6 +316,10 @@
         .empty-state-icon {
             font-size: 64px;
             margin-bottom: 20px;
+        }
+
+        .empty-state-icon .icon-inbox {
+            font-size: 64px;
         }
 
         .message {
@@ -453,37 +501,39 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <div class="sidebar-title">📝 RDBMS Todo</div>
+            <div class="sidebar-title">
+                <i class="icon icon-pencil"></i> RDBMS Todo
+            </div>
             <div class="sidebar-subtitle">Simple Database Demo</div>
         </div>
         <ul class="sidebar-menu">
             <li>
                 <a href="#" class="active">
-                    <span class="icon">📋</span>
+                    <i class="icon icon-clipboard"></i>
                     <span>All Tasks</span>
                 </a>
             </li>
             <li>
                 <a href="#">
-                    <span class="icon">✅</span>
+                    <i class="icon icon-check"></i>
                     <span>Completed</span>
                 </a>
             </li>
             <li>
                 <a href="#">
-                    <span class="icon">⏳</span>
+                    <i class="icon icon-clock"></i>
                     <span>Pending</span>
                 </a>
             </li>
             <li>
                 <a href="#">
-                    <span class="icon">📊</span>
+                    <i class="icon icon-chart"></i>
                     <span>Statistics</span>
                 </a>
             </li>
         </ul>
         <button class="add-task-btn" onclick="openModal()">
-            ➕ Add New Task
+            <i class="icon icon-plus"></i> Add New Task
         </button>
     </div>
 
@@ -491,7 +541,9 @@
     <div class="main-content">
         <div class="container">
             <header>
-                <h1>📝 Todo List Application</h1>
+                <h1>
+                    <i class="icon icon-pencil"></i> Todo List Application
+                </h1>
                 <p class="subtitle">Powered by Simple RDBMS - Demonstrating CRUD Operations</p>
                 
                 <div class="stats" id="stats">
@@ -653,7 +705,9 @@
             if (todos.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-icon">
+                            <i class="icon icon-inbox"></i>
+                        </div>
                         <h3>No tasks yet</h3>
                         <p>Click "Add New Task" to create your first task!</p>
                     </div>
@@ -673,14 +727,14 @@
                     <div class="todo-actions">
                         ${!todo.completed ? 
                             `<button class="btn-small btn-success" onclick="toggleComplete(${todo.id}, true)">
-                                ✓ Complete
+                                <i class="icon icon-check"></i> Complete
                             </button>` :
                             `<button class="btn-small btn-secondary" onclick="toggleComplete(${todo.id}, false)">
-                                ↺ Reopen
+                                <i class="icon icon-refresh"></i> Reopen
                             </button>`
                         }
                         <button class="btn-small btn-danger" onclick="deleteTodo(${todo.id})">
-                            🗑 Delete
+                            <i class="icon icon-trash"></i> Delete
                         </button>
                     </div>
                 </div>
