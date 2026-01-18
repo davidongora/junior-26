@@ -193,6 +193,32 @@ The web application uses the RDBMS to store and manage todo items, demonstrating
 - **UPDATE**: Mark todos as complete or reopen them
 - **DELETE**: Remove todos permanently
 
+### Screenshots
+
+**Main Application View**
+
+![Todo List Main View](screenshots/webapp-main.png)
+
+The main interface showing the todo list with tasks, statistics dashboard, and sidebar navigation.
+
+**Adding a New Task**
+
+![Add Task Form](screenshots/webapp-add-task-form.png)
+
+Modal form for creating new tasks with title, description, and priority fields.
+
+**Task Added Successfully**
+
+![Task Added](screenshots/webapp-task-added.png)
+
+The application after successfully adding a new task, showing the updated task list and statistics.
+
+**Completed Task View**
+
+![Completed Task](screenshots/webapp-task-completed.png)
+
+A task marked as complete (shown with strikethrough) with the "Reopen" button, and updated statistics showing 1 completed task.
+
 ## Architecture
 
 ### Core Components
